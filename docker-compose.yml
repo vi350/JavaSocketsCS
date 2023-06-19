@@ -1,0 +1,54 @@
+version: '3.8'
+
+volumes:
+  pgdata:
+#    external: true
+  pgadmin:
+#    external: true
+
+# tar backup: docker run --rm -v pgdata:/dbdata -v $(pwd):/backup alpine tar cvf /backup/backup.tar /dbdata
+# untar backup: docker run --rm -v pgdata:/dbdata -v $(pwd):/backup alpine bash -c "cd /dbdata && tar xvf /backup/backup.tar --strip 1"
+
+services:
+  postgres:
+    container_name: exbotesttask-postgres
+    image: postgres:alpine
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql.conf"
+    environment:
+      POSTGRES_DB: "${POSTGRESDB}"
+      POSTGRES_USER: "${POSTGRESUSER}"
+      POSTGRES_PASSWORD: "${POSTGRESPASSWORD}"
+    volumes:
+      # - ./pgdata:/var/lib/postgresql/data        # local directory usage
+      - pgdata:/var/lib/postgresql/data            # docker volume usage
+      - ./postgresql.conf:/etc/postgresql.conf
+      - ./logs:/logs
+    expose:
+      - "5432"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRESUSER} -d ${POSTGRESDB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: exbotesttask-pgadmin
+    depends_on:
+      - postgres
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMINEMAIL}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMINPASSWORD}"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
